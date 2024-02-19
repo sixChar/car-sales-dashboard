@@ -1,0 +1,4 @@
+20100001-eng/
+venv/
+__pycache__/
+sales.sqlite

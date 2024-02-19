@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+</head>
+
+
+<body>
+    <span class='region-bar'>
+    {% for region in regions %}
+        <span id="region-{{ region['name'] }}" class='region-card' onclick="switchRegion('{{ region['name'] }}')">
+            <h2>{{region['name']}}</h2>
+            <div class='region-row' style="color:{{ 'red' if region['month_change'] < 0 else 'green' }};">
+                <span>MoM:</span>
+                <span>{{region['month_change'] | round | int}}$</span>
+                <span>{{region['month_change_pct'] | round(2)}}%</span>
+            </div>
+            <div class='region-row' style="color:{{ 'red' if region['year_change'] < 0 else 'green' }};">
+                <span>YoY:</span>
+                <span>{{region['year_change'] | round | int}}$</span>
+                <span>{{region['year_change_pct'] | round(2)}}%</span>
+            </div>
+        </span>
+    {% endfor %}
+    </span>
+    <div class='main-view'>
+        <div class="main-sidebar">
+            <h1 id="text-curr-region">CA</h1>
+            <div class="date-range-holder">
+                <label class="date-select-holder">
+                    Start:
+                    <input class="date-select-year" id="start-year" type="number" min="{{ minYear }}" max="{{ maxYear }}" value="2022">
+                    <input class="date-select-month" id="start-month" type="number" min="1" max="12" value="1">
+                </label>
+                <label class="date-select-holder">
+                    End:
+                    <input class="date-select-year" id="end-year" type="number" min="{{ minYear }}" max="{{ maxYear }}" value="2023">
+                    <input class="date-select-month" id="end-month" type="number" min="1" max="12" value="1">
+                </label>
+                <button id="update-charts-btn" onclick="updateCharts()">Refresh</button>
+            </div>
+        </div>
+        <div id="sales-chart-holder" class="chart-holder">
+            <canvas id="sales-chart" class="chart-display"></canvas>
+        </div>
+        <div id="unit-chart-holder" class="chart-holder">
+            <canvas id="unit-chart" class="chart-display"></canvas>
+        </div>
+        <div id="type-chart-holder" class="chart-holder">
+            <canvas id="type-chart" class="chart-display"></canvas>
+        </div>
+        <div id="origin-chart-holder" class="chart-holder">
+            <canvas id="origin-chart" class="chart-display"></canvas>
+        </div>
+    </div>
+
+    <!-- For drawing charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script> 
+    <script>
+    function resizeChart(chartId) {
+        const chart = document.getElementById(chartId);
+        const chartHolder = document.getElementById(chartId + "-holder");
+        console.log(chartHolder);
+        console.log(chartId + "-holder");
+        chart.width = chartHolder.clientWidth;    
+        chart.height = chartHolder.clientHeight;    
+    }
+    
+    function switchRegion(newRegion) {
+        const regionText = document.getElementById("text-curr-region");
+        if (regionText.innerText != newRegion) {
+            regionText.innerText = newRegion;
+            updateCharts();
+        }
+    }
+
+
+    // Store the charts so they can be destroyed when updating.
+    var salesChartObj;
+    var unitChartObj;
+    var typeChartObj;
+    var originChartObj;
+    function updateCharts() {
+        salesChartObj?.destroy();
+        unitChartObj?.destroy();
+        typeChartObj?.destroy();
+        originChartObj?.destroy();
+
+        const startYear = document.getElementById('start-year').value;
+        const startMonth = document.getElementById('start-month').value;
+        const endYear = document.getElementById('end-year').value;
+        const endMonth = document.getElementById('end-month').value;
+        const region = document.getElementById('text-curr-region').innerText;
+
+        const start = startYear + "-" + startMonth;
+        const end = endYear + "-" + endMonth;
+
+        if (end <= start) {
+            alert("End date is before or equal to start date. Charts will be empty!")
+        }
+    
+        const commonOptions =  {
+            spanGaps: true,
+            devicePixelRatio: 4,
+        };
+        fetch('/detailed_data', {
+            method: 'POST',
+            body: JSON.stringify({
+                start_date: start,
+                end_date: end,
+                region: region
+            }),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        }).then(resp => resp.json())
+          .then(data => {
+            // Chart displaying sales in dollars
+            salesChartObj = new Chart("sales-chart", {
+                type: "line",
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        backgroundColor: "rgba(0,0,255,0.1)",
+                        borderColor: "rgba(0,0,255,1)",
+                        pointRadius: 0,
+                        data: data.dollars.map(x=>x/1000000),
+                    }]
+                },
+                options: {
+                    legend: {display:false},
+                    title: {display:true, text:"Sales ($ billion)"},
+                    ...commonOptions 
+                }
+            }); 
+
+            // Chart displaying units sold
+            unitChartObj = new Chart("unit-chart", {
+                type: "line",
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        backgroundColor: "rgba(0,0,255,0.1)",
+                        borderColor: "rgba(0,0,255,1)",
+                        pointRadius: 0,
+                        data: data.units.map(x=>x/1000),
+                    }]
+                },
+                options: {
+                    legend: {display:false},
+                    title: {display:true, text:"Units (1000)"},
+                    ...commonOptions 
+                }
+            }); 
+
+            // Chart displaying breakdown of car type
+            typeChartObj = new Chart("type-chart", {
+                type: "line",
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: "Trucks (as defined by GoC)",
+                        backgroundColor: "rgba(0,128,255,0)",
+                        borderColor: "rgba(0,128,255,1)",
+                        pointRadius: 0,
+                        data: data.trucks.map(x=>x/1000000),
+                    }, {
+                        label: "Cars",
+                        backgroundColor: "rgba(0, 255, 128, 0)",
+                        borderColor: "rgba(0,255,128,1)",
+                        pointRadius: 0,
+                        data: data.cars.map(x=>x/1000000),
+                    }],
+
+                },
+                options: {
+                    legend: {display:true},
+                    title: {display:true, text:"Sales by Type ($ billion)"},
+                    ...commonOptions 
+                }
+            }); 
+
+            // Chart displaying breakdown of origin of manufacture
+            originChartObj = new Chart("origin-chart", {
+                type: "line",
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: "North America",
+                        backgroundColor: "rgba(0,128,255,0)",
+                        borderColor: "rgba(0,128,255,1)",
+                        pointRadius: 0,
+                        data: data.na.map(x=>x/1000000),
+                    }, {
+                        label: "Overseas",
+                        backgroundColor: "rgba(0, 255, 128, 0)",
+                        borderColor: "rgba(0,255,128,1)",
+                        pointRadius: 0,
+                        data: data.overseas.map(x=>x/1000000),
+                    }],
+
+                },
+                options: {
+                    legend: {display:true},
+                    title: {display:true, text:"Sales by Origin ($ billion)"},
+                    ...commonOptions 
+                }
+            }); 
+        });
+    }
+
+    window.onload = () => {
+        resizeChart("sales-chart");
+        resizeChart("unit-chart");
+        resizeChart("origin-chart");
+        resizeChart("type-chart");
+        updateCharts();
+    }
+    </script>
+
+</body>
+
+</html>
