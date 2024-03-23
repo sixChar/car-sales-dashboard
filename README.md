@@ -19,3 +19,6 @@ Now you can run the flask backend:
 `python app.py`
 
 Finally, you can view the dashboard in the browser at 127.0.0.1:5000.
+
+## Preview
+![screenshot of the dashboard](readme-img.png?raw=true "Screenshot of dashboard")
