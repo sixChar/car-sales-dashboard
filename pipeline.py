@@ -6,6 +6,9 @@ DATA_PATH="20100001-eng/20100001.csv"
 
 
 
+'''
+    Sales in dollars and sales in units are conjoined in the data. This function separates them into their own columns
+'''
 def split_separate_sales_units(data):
     data_dollars = data[data['UOM'] == 'Dollars']
     data_units = data[data['UOM'] == 'Units']
@@ -31,6 +34,7 @@ def split_separate_sales_units(data):
 
 
 if __name__=="__main__":
+    # Makes debugging a bit easier
     pd.set_option('display.max_rows', 100)
     pd.set_option('display.max_columns', 1000)
 
@@ -115,6 +119,7 @@ if __name__=="__main__":
     na = data[['dollars', 'units']].where(data['origin'] == 'north_america')
     data[['na_dollars', 'na_units']] = na
 
+    # Take the largest option for each date and location (i.e. ensure the totals are captured)
     data = data.groupby(
         ['date', 'location']
     ).max()
@@ -125,6 +130,7 @@ if __name__=="__main__":
 
     curr = conn.cursor()
 
+    # Write to the database
     data.to_sql("car_sales_data", conn, if_exists="replace")
 
     conn.close()
