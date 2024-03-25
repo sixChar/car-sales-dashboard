@@ -58,14 +58,6 @@
     <!-- For drawing charts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script> 
     <script>
-    function resizeChart(chartId) {
-        const chart = document.getElementById(chartId);
-        const chartHolder = document.getElementById(chartId + "-holder");
-        console.log(chartHolder);
-        console.log(chartId + "-holder");
-        chart.width = chartHolder.clientWidth;    
-        chart.height = chartHolder.clientHeight;    
-    }
     
     function switchRegion(newRegion) {
         const regionText = document.getElementById("text-curr-region");
@@ -103,6 +95,8 @@
         const commonOptions =  {
             spanGaps: true,
             devicePixelRatio: 4,
+            responsive: true,
+            maintainAspectRatio: false,
         };
         fetch('/detailed_data', {
             method: 'POST',
@@ -211,12 +205,9 @@
     }
 
     window.onload = () => {
-        resizeChart("sales-chart");
-        resizeChart("unit-chart");
-        resizeChart("origin-chart");
-        resizeChart("type-chart");
         updateCharts();
     }
+
     </script>
 
 </body>
